@@ -55,11 +55,11 @@ function getIssues(body) {
     }).catch((err) => {console.log(err)});
 }
 
-function getOpenIssues() {
+async function getOpenIssues() {
   allIssues = []
 
   do {
-    page = getIssues(body("OPEN", page.endCursor))
+    page = await getIssues(body("OPEN", page.endCursor))
     allIssues.push(...page.issues)
   } while (page.has_next) 
 
