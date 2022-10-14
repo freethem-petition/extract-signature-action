@@ -10255,6 +10255,7 @@ function getIssues(body) {
 async function getOpenIssues() {
   allIssues = []
 
+  let page = {endCursor: undefined}
   do {
     page = await getIssues(body("OPEN", page.endCursor))
     allIssues.push(...page.issues)
