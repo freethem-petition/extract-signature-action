@@ -32,7 +32,7 @@ const body = (state, next) => {
   })
 };
 
-function getIssues(body) {
+async function getIssues(body) {
   const url = "https://api.github.com/graphql";
   const options = {
     method: "POST",
@@ -44,9 +44,10 @@ function getIssues(body) {
     }
   };
 
-  return fetch(url, options)
+  return await fetch(url, options)
     .then(resp => resp.json())
     .then(data => {
+      console.log(data, "hihi")
       return {
         issues: data.data.repository.issues.edges,
         has_next: data.data.repository.issues.pageInfo.hasNextPage,
