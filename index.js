@@ -25,7 +25,15 @@ const body = (state, next) => {
         query {
             repository(owner:"${repoOwner}", name:"${repoName}") {
                 issues(${issuesQuery}) {
-                  body
+                  edges {
+                    node {
+                      body
+                    }
+                  }
+                  pageInfo {
+                    endCursor
+                    hasNextPage
+                  }
                 }
               }
         }`
