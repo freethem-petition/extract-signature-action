@@ -3,20 +3,10 @@ const fs = require('fs');
 const fetch = require("node-fetch");
 const moment = require("moment");
 
-const dataDir = `./.github/actioncloud/issue-tracker`;
-if (!fs.existsSync(dataDir)){
-  fs.mkdirSync(dataDir, { recursive: true });
+const signatureDir = `./Signatures`;
+if (!fs.existsSync(signatureDir)){
+  fs.mkdirSync(signatureDir, { recursive: true });
 }
-const dataFilePath = dataDir + '/data.json'
-let issueData = [];
-fs.readFile(dataFilePath, 'utf8', (err, data) => {
-  if (!err) {
-    var jsonObj = JSON.parse(data);
-    if (typeof jsonObj === "object") {
-      issueData = jsonObj
-    }
-  }
-});
 
 const githubToken = core.getInput('github-token');
 const repo = process.env.GITHUB_REPOSITORY;
@@ -24,17 +14,23 @@ const repoInfo = repo.split("/");
 const repoOwner = repoInfo[0];
 const repoName = repoInfo[1];
 
-const body = state =>
-  JSON.stringify({
+const body = (state, next) => {
+  let issuesQuery = `first:10 after:${next}, states:${state}`;
+  if (!next) {
+    issuesQuery = `first:10, states:${state}`;
+  }
+
+  return JSON.stringify({
     query: `
         query {
             repository(owner:"${repoOwner}", name:"${repoName}") {
-                issues(states:${state}) {
-                  totalCount
+                issues(${issuesQuery}) {
+                  body
                 }
               }
         }`
-  });
+  })
+};
 
 function getIssues(body) {
   const url = "https://api.github.com/graphql";
@@ -51,47 +47,32 @@ function getIssues(body) {
   return fetch(url, options)
     .then(resp => resp.json())
     .then(data => {
-      return data.data.repository.issues.totalCount;
+      return {
+        issues: data.data.repository.issues.edges,
+        has_next: data.data.repository.issues.pageInfo.hasNextPage,
+        end_cursor: data.data.repository.issues.pageInfo.endCursor,
+      }
     }).catch((err) => {console.log(err)});
 }
 
 function getOpenIssues() {
-  return getIssues(body("OPEN"));
-}
+  allIssues = []
 
-function getClosedIssues() {
-  return getIssues(body("CLOSED"));
-}
+  do {
+    page = getIssues(body("OPEN", page.endCursor))
+    allIssues.push(...page.issues)
+  } while (page.has_next) 
 
-function storeData(record) {
-  issueData.push(record);
-}
-
-function dumpData() {
-  const jsonData = JSON.stringify(issueData);
-  fs.writeFile(dataFilePath, jsonData, (err) => {
-    if (err) throw err;
-  });
-}
-
-function printBadgeLink() {
-  const actioncloudBadge = '[![](https://img.shields.io/badge/ActionCloud%20App-Issue%20Tracker-blue)](https://free.actioncloud.io/apps/github-issue-tracker?owner=' + repoOwner + '&repo=' + repoName + ')';
-  console.log(`::set-output name=actioncloud-badge::${actioncloudBadge}`)
+  return allIssues
 }
 
 async function run() {
   var openIssues = await getOpenIssues();
-  var closedIssues = await getClosedIssues();
-  const now = moment().unix();
 
-  storeData({
-    timestamp: now,
-    openIssues: openIssues,
-    closedIssues: closedIssues
-  });
-
-  dumpData();
-  printBadgeLink();
+  openIssues.forEach(issue => {
+    const matched = issue.node.body.match("^-- BEGIN SIGNATURE --(.*)-- END SIGNATURE --");
+    console.log({"found": matched, "body": issue.node.body});
+  })
 }
 
 run();

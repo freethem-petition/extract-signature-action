@@ -1,12 +1,9 @@
-name: 'GitHub issue tracker'
-description: 'An issue tracker action'
+name: 'Sign by issue action'
+description: 'Github action for signing by creating issues'
 inputs:
   github-token:
     description: 'A GitHub token'
     required: true
-outputs:
-  actioncloud-badge: # id of output
-    description: 'The badge url of a ActionCloud Page'
 runs:
   using: 'node12'
   main: 'dist/index.js'
