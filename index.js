@@ -3,9 +3,10 @@ const fs = require('fs');
 const fetch = require("node-fetch");
 const moment = require("moment");
 
-const signatureDir = `./Signatures`;
-if (!fs.existsSync(signatureDir)){
-  fs.mkdirSync(signatureDir, { recursive: true });
+const signaturesDir = `./SIGNATURES`;
+const statementDir = `./STATEMENT`;
+if (!fs.existsSync(signaturesDir)){
+  fs.mkdirSync(signaturesDir, { recursive: true });
 }
 
 const githubToken = core.getInput('github-token');
@@ -28,6 +29,10 @@ const body = (state, next) => {
                   edges {
                     node {
                       body
+                      createdAt
+                      author {
+                        login
+                      }
                     }
                   }
                   pageInfo {
@@ -55,7 +60,6 @@ async function getIssues(body) {
   return await fetch(url, options)
     .then(resp => resp.json())
     .then(data => {
-      console.log(data, "hihi")
       return {
         issues: data.data.repository.issues.edges,
         has_next: data.data.repository.issues.pageInfo.hasNextPage,
@@ -76,13 +80,34 @@ async function getOpenIssues() {
   return allIssues
 }
 
+function dumpData(author, createdAt, signature) {
+  const fileName = `${author}-${createdAt}.sig`
+  console.log("dumping data to", fileName)
+  fs.writeFile(`${signaturesDir}/${fileName}`, signature, (err) => {
+    if (err) throw err;
+  });
+}
+
 async function run() {
   var openIssues = await getOpenIssues();
 
   openIssues.forEach(issue => {
-    const matched = issue.node.body.match("^-- BEGIN SIGNATURE --(.*)-- END SIGNATURE --");
-    console.log({"found": matched, "body": issue.node.body});
-  })
+    const author = issue.node.author.login;
+    const createdAt = issue.node.createdAt;
+    const matchedSignature = issue.node.body.match("/```SIGNATURE(.*)```/g");
+
+    console.log({"found": matchedSignature, "body": issue.node.body, "created": createdAt, "author": author});
+
+    if (matchedSignature.length < 1) {
+      console.log("wrong format")
+      return
+    }
+
+    const signature = matchedSignature[0].replace("\r", "").replace("\n", "")
+    console.log("format", signature);
+
+    dumpData(author, createdAt, signature);    
+  });
 }
 
 run();
