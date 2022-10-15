@@ -10291,16 +10291,16 @@ async function run() {
   openIssues.forEach(issue => {
     const author = issue.node.author.login;
     const createdAt = issue.node.createdAt;
-    const matchedSignature = issue.node.body.match("/```SIGNATURE(.*)```/g");
+    const matchedSignature = [...issue.node.body.matchAll(/```SIGNATURE([\s\S]*)```/g)];
 
     console.log({"found": matchedSignature, "body": issue.node.body, "created": createdAt, "author": author});
 
-    if (matchedSignature.length < 1) {
+    if (!matchedSignature || matchedSignature.length < 1) {
       console.log("wrong format")
       return
     }
 
-    const signature = matchedSignature[0].replace("\r", "").replace("\n", "")
+    const signature = matchedSignature[0][1];
     console.log("format", signature);
 
     dumpData(author, createdAt, signature);    
