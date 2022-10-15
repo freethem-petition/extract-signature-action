@@ -1,12 +1,14 @@
 const core = require('@actions/core');
 const fs = require('fs');
 const fetch = require("node-fetch");
-const moment = require("moment");
 
 const signaturesDir = `./SIGNATURES`;
 const statementDir = `./STATEMENT`;
 if (!fs.existsSync(signaturesDir)){
   fs.mkdirSync(signaturesDir, { recursive: true });
+}
+if (!fs.existsSync(statementDir)){
+  fs.mkdirSync(statementDir, { recursive: true });
 }
 
 const githubToken = core.getInput('github-token');
