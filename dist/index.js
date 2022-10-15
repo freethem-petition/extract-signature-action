@@ -10201,7 +10201,7 @@ const fetch = __nccwpck_require__(165);
 const moment = __nccwpck_require__(645);
 
 const signaturesDir = `./SIGNATURES`;
-const statementDir = (/* unused pure expression or super */ null && (`./STATEMENT`));
+const statementDir = `./STATEMENT`;
 if (!fs.existsSync(signaturesDir)){
   fs.mkdirSync(signaturesDir, { recursive: true });
 }
@@ -10277,10 +10277,18 @@ async function getOpenIssues() {
   return allIssues
 }
 
-function dumpData(author, createdAt, signature) {
-  const fileName = `${author}-${createdAt}.sig`
-  console.log("dumping data to", fileName)
-  fs.writeFile(`${signaturesDir}/${fileName}`, signature, (err) => {
+function dumpSignatureFile(author, createdAt, signature) {
+  const filePath = `${signaturesDir}/${author}-${createdAt}.sig`;
+  console.log("dumping data to", filePath);
+  fs.writeFile(filePath, signature, (err) => {
+    if (err) throw err;
+  });
+}
+
+function appendToAscFile(signature) {
+  const filePath = `${statementDir}/SHA256SUMS.asc`;
+  console.log("updating", filePath);
+  fs.appendFile(filePath, signature, (err) => {
     if (err) throw err;
   });
 }
@@ -10293,17 +10301,15 @@ async function run() {
     const createdAt = issue.node.createdAt;
     const matchedSignature = [...issue.node.body.matchAll(/```SIGNATURE([\s\S]*)```/g)];
 
-    console.log({"found": matchedSignature, "body": issue.node.body, "created": createdAt, "author": author});
-
     if (!matchedSignature || matchedSignature.length < 1) {
       console.log("wrong format")
       return
     }
+    console.log("found signature");
 
     const signature = matchedSignature[0][1];
-    console.log("format", signature);
-
-    dumpData(author, createdAt, signature);    
+    dumpSignatureFile(author, createdAt, signature);
+    appendToAscFile(signature);
   });
 }
 
