@@ -4584,7 +4584,7 @@ function dumpSignatureFile(author, createdAt, signature) {
 }
 
 function appendToAscFile(signature) {
-  const filePath = `${statementDir}/SHA256SUMS.asc`;
+  const filePath = `${statementDir}/SHA256SUM.asc`;
   console.log("updating", filePath);
   fs.appendFile(filePath, signature, (err) => {
     if (err) throw err;
