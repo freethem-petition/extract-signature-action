@@ -4510,10 +4510,10 @@ const repoInfo = repo.split("/");
 const repoOwner = repoInfo[0];
 const repoName = repoInfo[1];
 
-const body = (state, next) => {
-  let issuesQuery = `first:10 after:${next}, states:${state}`;
+const body = (state, next, label) => {
+  let issuesQuery = `first:10 after:${next}, states:${state}, labels:"${label}"`;
   if (!next) {
-    issuesQuery = `first:10, states:${state}`;
+    issuesQuery = `first:10, states:${state}, labels:"${label}"`;
   }
 
   return JSON.stringify({
@@ -4525,6 +4525,7 @@ const body = (state, next) => {
                     node {
                       body
                       createdAt
+                      url
                       author {
                         login
                       }
@@ -4563,21 +4564,41 @@ async function getIssues(body) {
     }).catch((err) => {console.log(err)});
 }
 
-async function getOpenIssues() {
+async function getOpenIssuesWithSignature() {
   allIssues = []
 
   let page = {endCursor: undefined}
   do {
-    page = await getIssues(body("OPEN", page.endCursor))
+    page = await getIssues(body("OPEN", page.endCursor, "add-signature"))
     allIssues.push(...page.issues)
   } while (page.has_next) 
 
   return allIssues
 }
 
-function dumpSignatureFile(author, createdAt, signature) {
+async function getOpenIssuesWithoutSignature() {
+  allIssues = []
+
+  let page = {endCursor: undefined}
+  do {
+    page = await getIssues(body("OPEN", page.endCursor, "add-signature-email"))
+    allIssues.push(...page.issues)
+  } while (page.has_next) 
+
+  return allIssues
+}
+
+function dumpSignatureFile(author, createdAt, content) {
   const filePath = `${signaturesDir}/${author}-${createdAt}.sig`;
-  console.log("dumping data to", filePath);
+  console.log("dumping singature data to", filePath);
+  fs.writeFile(filePath, content, (err) => {
+    if (err) throw err;
+  });
+}
+
+function dumpEmailSignatureFile(author, createdAt, content) {
+  const filePath = `${signaturesDir}/${author}-${createdAt}.emailsig`;
+  console.log("dumping singature data to", filePath);
   fs.writeFile(filePath, signature, (err) => {
     if (err) throw err;
   });
@@ -4592,22 +4613,70 @@ function appendToAscFile(signature) {
 }
 
 async function run() {
-  var openIssues = await getOpenIssues();
+  var openIssuesWithSignature = await getOpenIssuesWithSignature();
+  var openIssuesWithoutSignature = await getOpenIssuesWithoutSignature();
 
-  openIssues.forEach(issue => {
+  openIssuesWithSignature.forEach(issue => {
+    console.log("processing: ", issue.node.url);
+
     const author = issue.node.author.login;
     const createdAt = issue.node.createdAt;
     const matchedSignature = [...issue.node.body.matchAll(/```SIGNATURE([\s\S]*)```/g)];
+    const matchedName = [...issue.node.body.matchAll(/```NAME([\s\S]*)```\\n/g)];
+    const matchedEmail = [...issue.node.body.matchAll(/```EMAIL([\s\S]*)```/g)];
 
     if (!matchedSignature || matchedSignature.length < 1) {
-      console.log("wrong format")
+      console.log("wrong format - signature")
       return
     }
-    console.log("found signature");
+    if (!matchedName || matchedName.length < 1) {
+      console.log("wrong format - name")
+      return
+    }
+    if (!matchedEmail || matchedEmail.length < 1) {
+      console.log("wrong format - email")
+      return
+    }
 
-    const signature = matchedSignature[0][1];
+    const name = matchedName[0][1];
+    const email = matchedEmail[0][1];
+    const commentLine = `Comment: ${name} - ${email}`
+    const signature = matchedSignature[0][1].replace(
+      "-----BEGIN PGP SIGNATURE-----\n",
+      `-----BEGIN PGP SIGNATURE-----\n${commentLine}\n`
+    )
     dumpSignatureFile(author, createdAt, signature);
     appendToAscFile(signature);
+    console.log("close: ", issue.node.url);
+  });
+
+  openIssuesWithoutSignature.forEach(issue => {
+    console.log("processing: ", issue.node.url);
+    const author = issue.node.author.login;
+    const createdAt = issue.node.createdAt;
+    const matchedName = [...issue.node.body.matchAll(/```NAME([\s\S]*)```\\n/g)];
+    const matchedEmail = [...issue.node.body.matchAll(/```EMAIL([\s\S]*)```/g)];
+
+    if (!matchedName || matchedName.length < 1) {
+      console.log("wrong format - name")
+      return
+    }
+    if (!matchedEmail || matchedEmail.length < 1) {
+      console.log("wrong format - email")
+      return
+    }
+
+    const name = matchedName[0][1];
+    const email = matchedEmail[0][1];
+
+    const content = `
+    ---
+    Name: ${name}
+    Email: ${email}
+    ---
+    `;
+    dumpEmailSignatureFile(author, createdAt, content);
+    console.log("close: ", issue.node.url);
   });
 }
 
