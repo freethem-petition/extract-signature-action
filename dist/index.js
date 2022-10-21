@@ -4606,7 +4606,7 @@ function dumpSignatureFile(author, createdAt, content) {
 function dumpEmailSignatureFile(author, createdAt, content) {
   const filePath = `${signaturesDir}/${author}-${createdAt}.emailsig`;
   console.log("dumping singature data to", filePath);
-  fs.writeFile(filePath, signature, (err) => {
+  fs.writeFile(filePath, content, (err) => {
     if (err) throw err;
   });
 }
@@ -4622,6 +4622,9 @@ function appendToAscFile(signature) {
 async function run() {
   var openIssuesWithSignature = await getOpenIssuesWithSignature();
   var openIssuesWithoutSignature = await getOpenIssuesWithoutSignature();
+
+  console.log("found", openIssuesWithSignature.length, "signed issues");
+  console.log("found", openIssuesWithoutSignature.length, "signed by mail issues");
 
   openIssuesWithSignature.forEach(issue => {
     console.log("processing: ", issue.node.url);
