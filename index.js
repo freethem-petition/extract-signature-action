@@ -63,6 +63,7 @@ async function getIssues(body) {
   return await fetch(url, options)
     .then(resp => resp.json())
     .then(data => {
+      console.log("resp", data, "query", body)
       if (data && data.data && data.data.repository) {
         return {
           issues: data.data.repository.issues.edges,
