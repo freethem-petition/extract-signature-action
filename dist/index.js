@@ -4556,10 +4556,17 @@ async function getIssues(body) {
   return await fetch(url, options)
     .then(resp => resp.json())
     .then(data => {
+      if (data && data.data && data.data.repository) {
+        return {
+          issues: data.data.repository.issues.edges,
+          has_next: data.data.repository.issues.pageInfo.hasNextPage,
+          end_cursor: data.data.repository.issues.pageInfo.endCursor,
+        }
+      }
       return {
-        issues: data.data.repository.issues.edges,
-        has_next: data.data.repository.issues.pageInfo.hasNextPage,
-        end_cursor: data.data.repository.issues.pageInfo.endCursor,
+        issues: [],
+        has_next: false,
+        end_cursor: undefined
       }
     }).catch((err) => {console.log(err)});
 }
