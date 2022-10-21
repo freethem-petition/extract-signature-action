@@ -4565,7 +4565,7 @@ async function getIssues(body) {
 }
 
 async function getOpenIssuesWithSignature() {
-  allIssues = []
+  let allIssues = []
 
   let page = {endCursor: undefined}
   do {
@@ -4577,7 +4577,7 @@ async function getOpenIssuesWithSignature() {
 }
 
 async function getOpenIssuesWithoutSignature() {
-  allIssues = []
+  let allIssues = []
 
   let page = {endCursor: undefined}
   do {
