@@ -18,7 +18,7 @@ const repoOwner = repoInfo[0];
 const repoName = repoInfo[1];
 
 const body = (state, next, label) => {
-  let issuesQuery = `first:10 after:${next}, states:${state}, labels:"${label}"`;
+  let issuesQuery = `first:10, after:"${next}", states:${state}, labels:"${label}"`;
   if (!next) {
     issuesQuery = `first:10, states:${state}, labels:"${label}"`;
   }
@@ -63,7 +63,6 @@ async function getIssues(body) {
   return await fetch(url, options)
     .then(resp => resp.json())
     .then(data => {
-      console.log("resp", data, "query", body)
       if (data && data.data && data.data.repository) {
         return {
           issues: data.data.repository.issues.edges,
@@ -82,9 +81,9 @@ async function getIssues(body) {
 async function getOpenIssuesWithSignature() {
   let allIssues = []
 
-  let page = {endCursor: undefined}
+  let page = {end_cursor: undefined}
   do {
-    page = await getIssues(body("OPEN", page.endCursor, "add-signature"))
+    page = await getIssues(body("OPEN", page.end_cursor, "add-signature"))
     allIssues.push(...page.issues)
   } while (page.has_next) 
 
@@ -94,9 +93,9 @@ async function getOpenIssuesWithSignature() {
 async function getOpenIssuesWithoutSignature() {
   let allIssues = []
 
-  let page = {endCursor: undefined}
+  let page = {end_cursor: undefined}
   do {
-    page = await getIssues(body("OPEN", page.endCursor, "add-signature-email"))
+    page = await getIssues(body("OPEN", page.end_cursor, "add-signature-email"))
     allIssues.push(...page.issues)
   } while (page.has_next) 
 
@@ -140,9 +139,9 @@ async function run() {
     const author = issue.node.author.login;
     const createdAt = issue.node.createdAt;
     const matchedSignature = [...issue.node.body.matchAll(/```SIGNATURE([\s\S]*)```/g)];
-    const matchedName = [...issue.node.body.matchAll(/```NAME([\s\S]*)```\\n/g)];
-    const matchedEmail = [...issue.node.body.matchAll(/```EMAIL([\s\S]*)```/g)];
-
+    const matchedName = [...issue.node.body.matchAll(/```NAME ([\s\S]*)```\s*### Your email/g)];
+    const matchedEmail = [...issue.node.body.matchAll(/```EMAIL ([\s\S]*)```\s*### Your signature/g)];
+    
     if (!matchedSignature || matchedSignature.length < 1) {
       console.log("wrong format - signature")
       return
@@ -160,9 +159,10 @@ async function run() {
     const email = matchedEmail[0][1];
     const commentLine = `Comment: ${name} - ${email}`
     const signature = matchedSignature[0][1].replace(
-      "-----BEGIN PGP SIGNATURE-----\n",
+      "-----BEGIN PGP SIGNATURE-----",
       `-----BEGIN PGP SIGNATURE-----\n${commentLine}\n`
     )
+
     dumpSignatureFile(author, createdAt, signature);
     appendToAscFile(signature);
     console.log("close: ", issue.node.url);
@@ -172,9 +172,9 @@ async function run() {
     console.log("processing: ", issue.node.url);
     const author = issue.node.author.login;
     const createdAt = issue.node.createdAt;
-    const matchedName = [...issue.node.body.matchAll(/```NAME([\s\S]*)```\\n/g)];
-    const matchedEmail = [...issue.node.body.matchAll(/```EMAIL([\s\S]*)```/g)];
-
+    const matchedName = [...issue.node.body.matchAll(/```NAME ([\s\S]*)```\s*### Your email/g)];
+    const matchedEmail = [...issue.node.body.matchAll(/```EMAIL ([\s\S]*)```\s*/g)];
+    
     if (!matchedName || matchedName.length < 1) {
       console.log("wrong format - name")
       return
